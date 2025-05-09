@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Minha IPTV YouTube</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #000;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      height: 100vh;
+      overflow: hidden;
+      padding: 20px;
+    }
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      color: #0f0;
+      text-shadow: 0 0 10px #0f0;
+    }
+    #player-container {
+      display: flex;
+      width: 100%;
+      max-width: 1400px;
+      height: 80vh;
+      background-color: #111;
+      border-radius: 12px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    #player {
+      flex: 2;
+      background-color: #000;
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    ul#playlist {
+      flex: 1;
+      list-style: none;
+      padding: 20px;
+      overflow-y: auto;
+      max-height: 80vh;
+      background-color: #222;
+      border-left: 2px solid #444;
+      display: block;
+    }
+    li {
+      background: #1a1a1a;
+      border: 2px solid #333;
+      padding: 15px 20px;
+      border-radius: 10px;
+      font-size: 1.2rem;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 10px;
+      transition: all 0.3s ease;
+    }
+    li:hover {
+      background: #0f0;
+      color: #000;
+      transform: scale(1.05);
+      font-weight: bold;
+    }
+    .fullscreen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: #000;
+    }
+    .back-button {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 2rem;
+      color: #0f0;
+      cursor: pointer;
+      z-index: 9999;
+      transition: all 0.3s ease;
+    }
+    .back-button:hover {
+      transform: scale(1.2);
+    }
+
+    /* Ajustes para o modo paisagem em dispositivos móveis */
+    @media (max-width: 900px) and (orientation: landscape) {
+      #player-container {
+        flex-direction: column;
+        height: 100%;
+      }
+      ul#playlist {
+        width: 100%;
+        border-left: none;
+        max-height: 50vh; /* Menor altura para não ocupar toda a tela */
+      }
+      li {
+        width: 100%;
+      }
+      h1 {
+        font-size: 2rem;
+        margin-bottom: 10px;
+      }
+    }
+
+    /* Ajustes para quando o vídeo estiver em tela cheia */
+    @media (max-width: 600px) {
+      .fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+      }
+      #player {
+        width: 100vw !important;
+        height: 100vh !important;
+      }
+      #player-container {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Minha IPTV YouTube</h1>
+  <div id="player-container">
+    <div id="player"></div>
+    <ul id="playlist"></ul>
+  </div>
+
+  <!-- Carrega a API do YouTube -->
+  <script src="https://www.youtube.com/iframe_api"></script>
+
+  <script>
+    const apiKey = 'AIzaSyCoQHJAYSq2oEtwHJhydEY9qS-8xstwtkQ';
+    const playlistId = 'PLBtPJ-uNKC4IWUBfQmqHVKVvxi9eC3ypv';
+
+    let player;
+
+    function onYouTubeIframeAPIReady() {
+      player = new YT.Player('player', {
+        height: '100%',
+        width: '100%',
+        videoId: '', // Não será definido até que o vídeo seja carregado
+        playerVars: {
+          rel: 0,
+          modestbranding: 1,
+          autoplay: 1,  // Automaticamente começa a tocar o vídeo
+          controls: 1   // Controle de vídeo visível
+        },
+        events: {
+          onReady: loadPlaylist
+        }
+      });
+    }
+
+    async function loadPlaylist() {
+      const response = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet&maxResults=50&playlistId=${playlistId}&key=${apiKey}`);
+      const data = await response.json();
+
+      const list = document.getElementById('playlist');
+
+      data.items.forEach((item, index) => {
+        const videoId = item.snippet.resourceId.videoId;
+        const title = item.snippet.title;
+
+        const li = document.createElement('li');
+        li.textContent = title;
+        li.onclick = () => loadVideo(videoId);
+        list.appendChild(li);
+
+        if (index === 0) {
+          player.loadVideoById(videoId); // Carrega o primeiro vídeo automaticamente
+        }
+      });
+    }
+
+    function loadVideo(videoId) {
+      // Esconde a lista e o player container
+      document.getElementById('playlist').style.display = 'none';
+      document.getElementById('player-container').classList.add('fullscreen');
+      
+      // Ajusta o player para tela cheia
+      document.getElementById('player').style.height = '100vh';
+      document.getElementById('player').style.width = '100vw';
+      
+      // Carrega o vídeo
+      player.loadVideoById(videoId);
+
+      // Adiciona a seta de voltar
+      const backButton = document.createElement('div');
+      backButton.classList.add('back-button');
+      backButton.innerHTML = '&larr; Voltar';
+      backButton.onclick = exitFullScreen;
+      document.body.appendChild(backButton);
+    }
+
+    function exitFullScreen() {
+      // Restaura o layout normal
+      document.getElementById('playlist').style.display = 'block';
+      document.getElementById('player-container').classList.remove('fullscreen');
+      document.getElementById('player').style.height = '80vh';
+      document.getElementById('player').style.width = '70%';
+
+      // Remove a seta de voltar
+      const backButton = document.querySelector('.back-button');
+      if (backButton) backButton.remove();
+    }
+  </script>
+</body>
+</html>
